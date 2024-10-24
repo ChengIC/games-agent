@@ -4,6 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from utils.llm import host_llm, player_llm
 from utils.tools import host_tools, player_tools
 import logging
+from datetime import datetime
 
 def create_agent(llm, tools, system_prompt, role):
     """ Create an agent with a given llm, tools, and system prompt """
@@ -12,7 +13,7 @@ def create_agent(llm, tools, system_prompt, role):
             (
                 "system",
                 "You are part of a game of 20 questions. Your role is {role}. "
-                "You MUST ALWAYS use the provided tools for EVERY action. "
+                "You MUST ALWAYS use the provided tools for EVERY action no matter what."
                 "Available tools: {tool_names}.\n"
                 "Role-specific instructions: {system_message}"
             ),
@@ -24,34 +25,52 @@ def create_agent(llm, tools, system_prompt, role):
     prompt = prompt.partial(tool_names=tools)
     if role == "host":
         prompt = prompt.partial(topic=MessagesPlaceholder(variable_name="topic"))
-    return prompt | llm.bind_tools(tools)
+    return prompt | llm.bind_tools(tools, tool_choice="required")
 
-from langgraph.prebuilt import create_react_agent
 
-host_system_prompt = """You are the AI host of a game of 20 questions. You will be given the conversation history between you (AI) and the player.
-                        You are tasked with either generating a topic for the game (ONLY at the start of the game) or answering questions from the player. 
+host_system_prompt = """You are the AI host in a 20 questions game. Your tasks are to generate a topic or answer player questions.
 
-                        You MUST ALWAYS use the provided tools for every action:
-                        1. Use the 'generate_topic' tool to create a new topic ONLY at the start of the game and if you don't have a topic yet.
-                        If you have already generated a topic, do not generate a new one.
-                        2. Use the 'answer_question' tool to respond to player questions with ONLY 'YES' or 'NO'.
+                        The conversation history is formatted as follows:
+                        - ('human', 'message 1'), ('ai', 'message 2'), ('human', 'message 3') ...
+                        - You are the 'ai', and the player is the 'human'.
+
+                        Tasks:
+                        1. Use the 'generate_topic' tool to create a topic at the beginning of the game if none exists.
+                        2. Use the 'answer_question' tool to respond 'YES' or 'NO' to the most recent question from the player.
+
+                        Instructions:
+                        - Do not generate a topic or answer the question without tools.
+                        - Provide responses exactly as the tool outputs.
+                        - NO extra explanations beyond tool outputs.
+
+                        Note: If the game starts with "I have a secret topic for you to guess. Let's start the game.", do not generate a new topic.
+                        """
+
+player_system_prompt = """You are the AI player in a 20 questions game. 
+                        Your task is to guess the secret topic by interacting with the host using the provided tools.
+                        IMPORTANT: YOU MUST NEVER OUTPUT A GUESS DIRECTLY - ALWAYS USE THE make_guess TOOL!
                         
-                        When the player try to make a guess he should only return the name of the guessing topic without any additional text or questions.
-                        Please don NOT generate a new topic when you already have one.
-                        After using these, you should gives the exact same response as the tool output.
-                        Do not provide any explanations or additional text beyond the tool output. """
-
-player_system_prompt = """You are the AI player of a game of 20 questions. You will be given the conversation history between you (AI) and the host.
-                        You should either ask questions or make guesses.
+                        The conversation history is formatted as follows:
+                        - ('human', 'message 1'), ('ai', 'message 2'), ('human', 'message 3') ...
+                        - You are the 'ai', and the host is the 'human'.
                         
-                        You MUST ALWAYS use the provided tools for every action:
-                        1. Use the 'generate_question' tool to ask yes-or-no questions about the topic.
-                        2. Use the 'make_guess' tool when you're ready to guess the topic. 
-                        You should expect only return the name of the guessing topic without any additional text or questions.
+                        During the game, you have exactly two possible actions:
+                        1. Use the 'generate_question' tool to ask a yes-or-no question
+                        2. Use the 'make_guess' tool to submit your final guess
+                        
+                        STRICT RULES:
+                        - NEVER write a guess in your response - you must use the make_guess tool
+                        - If you think you know the answer, you MUST use the make_guess tool
+                        - If you see the word "guess" or "answer" in your thought process, you MUST use the make_guess tool
+                        - Any attempt to guess without the make_guess tool will be considered invalid
+                        - Do not explain your reasoning - just use the appropriate tool
+                        
+                        Example correct behavior:
+                        - When you want to guess "elephant" or something, use: make_guess tool and return the response from this tool 
+                        ignoring your original guess. 
+                        
+                        Remember: EVERY guess MUST go through the make_guess tool - no exceptions!"""
 
-                        Do not ask questions or make guesses directly. Always use the appropriate tool.
-                        After using these, you should gives the exact same response as the tool output.
-                        Avoid repeating questions you've already asked."""
 
 host_agent = create_agent(host_llm, host_tools, host_system_prompt, "host")
 player_agent = create_agent(player_llm, player_tools, player_system_prompt, "player")
@@ -76,7 +95,8 @@ def format_chat_history(messages, current_role):
 # Helper function to create a node for a given agent
 def agent_node(state, agent, name):
     # Set up logging
-    log_filename = "log.txt"
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    log_filename = f"logs/log_{timestamp}.txt"
     logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(message)s', filemode='w')
     logging.info("********************************")
     logging.info(f"call agent name: {name} and state topic: {state['topic']}")

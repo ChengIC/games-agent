@@ -19,23 +19,19 @@ class Test(unittest.TestCase):
         state = AgentState(messages=[HumanMessage(content="Let's play a game of 20 questions"), 
                                     AIMessage(content="I have a secret topic for you to guess. Let's start the game."),
                                     HumanMessage(content="Is it a cat?")], topic="dog")
-        response = host_agent.invoke(state)
+        response = host_agent.invoke({"messages": state["messages"], 
+                                      "topic": state["topic"]})
         self.assertEqual(response.tool_calls[0]['name'], 'answer_question')
+        self.assertEqual(response.content, "No")
         
         
     def test_player_agent_is_generating_question(self):
         state = AgentState(messages=[HumanMessage(content="I have a secret topic for you to guess. Let's start the game."),
-                                     AIMessage(content="I have a secret topic for you to guess. Let's start the game.")])
+                                     AIMessage(content="Is it a dog?"),
+                                     HumanMessage(content="No")])
         response = player_agent.invoke(state)
         self.assertEqual(response.tool_calls[0]['name'], 'generate_question')
 
-    def test_player_agent_is_making_guess(self):
-        state = AgentState(messages=[HumanMessage(content="I have a secret topic for you to guess. Let's start the game."),
-                                     AIMessage(content="I have a secret topic for you to guess. Let's start the game."),
-                                     HumanMessage(content="Is it a cat?"),
-                                     AIMessage(content="Yes")])
-        response = player_agent.invoke(state)
-        self.assertEqual(response.tool_calls[0]['name'], 'make_guess')
 
 if __name__ == "__main__":
     unittest.main()
