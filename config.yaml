@@ -1,0 +1,9 @@
+host_llm:
+    type: openai
+    model: gpt-4o-mini
+    temperature_for_topic: 1.0
+
+guesser_llm:
+    type: openai
+    model: gpt-4o-mini
+    temperature: 0
