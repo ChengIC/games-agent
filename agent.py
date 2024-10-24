@@ -19,13 +19,13 @@ def router(state):
 
     if last_message.tool_calls:
         return "call_tool"
-    
-    if state["question_answered"] == 20:
+
+    if state["question_answered"] > 20:
         print ("question answered 20 go to end")
         return "end"
     
-    if state["question_asked"] == 20:
-        print ("question answered 20 go to end")
+    if state["question_asked"] > 20:
+        print ("question asked 20 go to end")
         return "end"
     
     if state["guess"] == state["topic"]:
