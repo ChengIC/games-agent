@@ -163,10 +163,15 @@ def agent_node(state, agent, name):
             result = agent.invoke({"messages": format_chat_history(state["messages"], name)})
         else:
             print(f"state task for host: {state['task_for_host']}, guess: {state['guess']}, topic: {state['topic']}")
-            result = agent.invoke({"messages": format_chat_history(state["messages"], name),
-                                   "topic": [state.get("topic", "")],
-                                   "task_for_host": [state.get("task_for_host", "")],
-                                   "guess": [state.get("guess", "None")]})
+            
+            host_state = {"messages": format_chat_history(state["messages"], name),
+                          "topic": [state.get("topic", "")],
+                          "task_for_host": [state.get("task_for_host", "")],}
+            
+            if state.get("guess") is not None:
+                host_state["guess"] = [state.get("guess")]
+
+            result = agent.invoke(host_state)
 
         result = AIMessage(**result.dict(exclude={"type", "name"}), name=name)
         experiment_logger.log(f"agent {name} returns: {result}")

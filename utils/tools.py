@@ -106,7 +106,7 @@ def check_guess(topic: str, guess: str, task_for_host: str):
     if task_for_host != "check_guess":
         raise ValueError("This tool should only be used when the task is to check a guess.")
 
-    if guess.lower() == topic.lower() or guess.lower() in topic.lower():
+    if guess.lower() == topic.lower() or topic.lower() in guess.lower():
         return "Congratulations, you are right!"
     else:
         return "Sorry, you are wrong. Please ask another question."
