@@ -5,11 +5,11 @@ from utils.llm import host_llm, player_llm
 from utils.tools import host_tools, player_tools
 import logging
 from datetime import datetime
+from utils.logger import experiment_logger
 
 def create_agent(llm, tools, system_prompt, role):
     """ Create an agent with a given llm, tools, and system prompt """
-    prompt = ChatPromptTemplate.from_messages(
-        [
+    prompt_settings = [
             (
                 "system",
                 "You are part of a game of 20 questions. Your role is {role}. "
@@ -19,31 +19,43 @@ def create_agent(llm, tools, system_prompt, role):
             ),
             MessagesPlaceholder(variable_name="messages"),
         ]
-    )
+    if role == "host":
+        prompt_settings.append(MessagesPlaceholder(variable_name="topic"))
+        prompt_settings.append(MessagesPlaceholder(variable_name="task_for_host"))
+        prompt_settings.append(MessagesPlaceholder(variable_name="guess"))
+        
+    prompt = ChatPromptTemplate.from_messages(prompt_settings)
     prompt = prompt.partial(role=role)
     prompt = prompt.partial(system_message=system_prompt)
     prompt = prompt.partial(tool_names=tools)
-    if role == "host":
-        prompt = prompt.partial(topic=MessagesPlaceholder(variable_name="topic"))
+
     return prompt | llm.bind_tools(tools, tool_choice="required")
 
 
-host_system_prompt = """You are the AI host in a 20 questions game. Your tasks are to generate a topic or answer player questions.
+host_system_prompt = """You are the AI host in a 20 questions game. Your tasks are to generate a topic, answer player questions, 
+                        and check if the player's guess is correct. You will be given a {task_for_host}. ALWAYS use the specified tool for the given task.
+                        If the {guess} is None, you should not use the check_guess tool.
 
-                        The conversation history is formatted as follows:
-                        - ('human', 'message 1'), ('ai', 'message 2'), ('human', 'message 3') ...
-                        - You are the 'ai', and the player is the 'human'.
+                        Tasks and corresponding tools:
+                        1. "generate_topic": Use the 'generate_topic' tool to create a topic at the beginning of the game if none exists.
+                        2. "answer_question": Use the 'answer_question' tool to respond 'YES' or 'NO' to the most recent question from the player.
+                        3. "check_guess": Use the 'check_guess' tool to check if the player's guess is correct.
 
-                        Tasks:
-                        1. Use the 'generate_topic' tool to create a topic at the beginning of the game if none exists.
-                        2. Use the 'answer_question' tool to respond 'YES' or 'NO' to the most recent question from the player.
+                        IMPORTANT:
+                        - ALWAYS use the tool specified by the {task_for_host}.
+                        - NEVER change the task or use a different tool than specified.
+                        - Provide responses EXACTLY as the tool outputs, with NO additional explanations.
 
-                        Instructions:
-                        - Do not generate a topic or answer the question without tools.
-                        - Provide responses exactly as the tool outputs.
-                        - NO extra explanations beyond tool outputs.
+                        Conversation format:
+                        - ('human', 'player message'), ('ai', 'your response'), ...
+                        - You are 'ai', the player is 'human'.
 
-                        Note: If the game starts with "I have a secret topic for you to guess. Let's start the game.", do not generate a new topic.
+                        Guidelines:
+                        - For "answer_question": The player's question will be a YES-or-NO type.
+                        - For "check_guess": The player's guess will be a declarative statement, not a question.
+                        - If the game starts with "I have a secret topic for you to guess. Let's start the game.", do not generate a new topic.
+
+                        Remember: Your role is to facilitate the game, not to provide additional information or explanations beyond the tool outputs.
                         """
 
 player_system_prompt = """You are the AI player in a 20 questions game. 
@@ -78,7 +90,7 @@ player_agent = create_agent(player_llm, player_tools, player_system_prompt, "pla
 
 def format_chat_history(messages, current_role):
     """ Filter out tool messages from a list of messages """
-    logging.info(" get_chat_history messages:")
+    experiment_logger.log(" get_chat_history messages:")
     filtered_messages = []
     for m in messages:
         if not isinstance(m, ToolMessage) and m.content != "":
@@ -88,59 +100,76 @@ def format_chat_history(messages, current_role):
                 filtered_messages.append(("human", m.content))
 
     for i, msg in enumerate(filtered_messages):
-        logging.info(f"filtered_message {i}: {msg}")
+        experiment_logger.log(f"filtered_message {i}: {msg}")
     return filtered_messages
 
 
 # Helper function to create a node for a given agent
 def agent_node(state, agent, name):
-    # Set up logging
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    log_filename = f"logs/log_{timestamp}.txt"
-    logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s - %(message)s', filemode='w')
-    logging.info("********************************")
-    logging.info(f"call agent name: {name} and state topic: {state['topic']}")
-    logging.info(f"question_answered: {state['question_answered']} and question_asked: {state['question_asked']}")
+    experiment_logger.log(f"call agent: {name} with input state topic: {state['topic']} \
+                          question_answered: {state['question_answered']} \
+                          question_asked: {state['question_asked']} \
+                          task_for_host: {state['task_for_host']} \
+                          guess: {state['guess']}")
 
     last_message = state["messages"][-1]
     if isinstance(last_message, ToolMessage):
+        experiment_logger.log(f"call tools: {last_message.name} with tool content: {last_message.content}")
+
+        if name == "host" and last_message.name != state["task_for_host"]:
+            raise ValueError(f"Host called the wrong tool: {last_message.name}, expected: {state['task_for_host']}")
+
         if last_message.name == "generate_topic":
             return {
                 "messages": [AIMessage(content="I have a secret topic for you to guess. Let's start the game.", name=name)],
                 "sender": "host",
                 "topic": last_message.content,
+                "task_for_host": "answer_question",
             }
         
-        if last_message.name == "answer_question":
+        elif last_message.name == "answer_question":
             return {
                 "messages": [AIMessage(content=last_message.content, name=name)],
                 "sender": "host",
                 "question_answered": state["question_answered"] + 1,
             }
 
-        if last_message.name == "make_guess":
+        elif last_message.name == "make_guess":
             return {
                 "messages": [AIMessage(content=last_message.content, name=name)],
                 "sender": "player",
                 "guess": last_message.content,
+                "task_for_host": "check_guess",
             }
         
-        if last_message.name == "generate_question":
+        elif last_message.name == "generate_question":
             return {
                 "messages": [AIMessage(content=last_message.content, name=name)],
                 "sender": "player",
                 "question_asked": state["question_asked"] + 1,
+                "task_for_host": "answer_question",
             }
-    
+        
+        elif last_message.name == "check_guess":
+            return {
+                "messages": [AIMessage(content=last_message.content, name=name)],
+                "sender": "host",
+            }
+        
+        else:
+            raise ValueError(f"Unknown tool: {last_message.name}")
     else:
         if name == "player":
             result = agent.invoke({"messages": format_chat_history(state["messages"], name)})
         else:
+            print(f"state task for host: {state['task_for_host']}, guess: {state['guess']}, topic: {state['topic']}")
             result = agent.invoke({"messages": format_chat_history(state["messages"], name),
-                                   "topic": state.get("topic", "")})
+                                   "topic": [state.get("topic", "")],
+                                   "task_for_host": [state.get("task_for_host", "")],
+                                   "guess": [state.get("guess", "None")]})
 
         result = AIMessage(**result.dict(exclude={"type", "name"}), name=name)
-
+        experiment_logger.log(f"agent {name} returns: {result}")
         return {
             "messages": [result],
             "sender": name,

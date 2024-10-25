@@ -3,6 +3,7 @@ from langgraph.graph import StateGraph, START,END
 from utils.state import AgentState
 from utils.tools import tool_node
 from langchain_core.messages import SystemMessage
+from utils.logger import experiment_logger
 
 # Create the graph
 workflow = StateGraph(AgentState)
@@ -18,14 +19,15 @@ def router(state):
     last_message = messages[-1]
 
     if last_message.tool_calls:
+        experiment_logger.log(f"tool call: {last_message.tool_calls}")
         return "call_tool"
     
-    if state["question_asked"] >= 20 and state["question_answered"] >= 20:
-        print ("question asked and answered 20 go to end")
+    if state["question_asked"] > 20 or state["question_answered"] > 20:
+        experiment_logger.log("question asked and answered 20 go to end")
         return "end"
     
     if state["guess"] == state["topic"]:
-        print ("guess is the topic go to end")
+        experiment_logger.log("guess is the topic go to end")
         return "end"
     
     return "continue"
@@ -73,13 +75,14 @@ events = app.stream(
         "question_asked": 0,
         "question_answered": 0,
         "guess": "",
+        "task_for_host": "generate_topic",
     },
     {"recursion_limit": 200},
     stream_mode="updates"
 )
 
-
 for s in events:
+    experiment_logger.log("********************************************************")
     for node, values in s.items():
-        print (f"node: {node}")
-
+        experiment_logger.log(f"update node: {node} and update: {values}")
+        print(f"update node: {node} ")
