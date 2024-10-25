@@ -18,7 +18,7 @@ def correct_tool_call(state):
     if len(state["messages"][-1].tool_calls) > 1:
         state["messages"][-1].tool_calls = [state["messages"][-1].tool_calls[0]]
         experiment_logger.log(f"multiple tool calls: {state['messages'][-1].tool_calls}")
-        
+
     last_tool_call = state["messages"][-1].tool_calls[0]
     task_for_host = state["task_for_host"]
     # fix the tool call if the host called the wrong tool for "answer_question" and "check_guess"
@@ -58,7 +58,7 @@ def router(state):
         experiment_logger.log("question asked and answered 20 go to end")
         return "end"
     
-    if state["guess"] == state["topic"]:
+    if state["guess"].lower() == state["topic"].lower():
         experiment_logger.log("guess is the topic go to end")
         return "end"
     
