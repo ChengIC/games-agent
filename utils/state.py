@@ -10,3 +10,4 @@ class AgentState(TypedDict):
     question_answered: int
     guess: str
     task_for_host: str
+    most_recent_question: str

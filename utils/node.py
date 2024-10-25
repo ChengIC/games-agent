@@ -116,9 +116,6 @@ def agent_node(state, agent, name):
     if isinstance(last_message, ToolMessage):
         experiment_logger.log(f"call tools: {last_message.name} with tool content: {last_message.content}")
 
-        if name == "host" and last_message.name != state["task_for_host"]:
-            raise ValueError(f"Host called the wrong tool: {last_message.name}, expected: {state['task_for_host']}")
-
         if last_message.name == "generate_topic":
             return {
                 "messages": [AIMessage(content="I have a secret topic for you to guess. Let's start the game.", name=name)],
@@ -148,6 +145,7 @@ def agent_node(state, agent, name):
                 "sender": "player",
                 "question_asked": state["question_asked"] + 1,
                 "task_for_host": "answer_question",
+                "most_recent_question": last_message.content,
             }
         
         elif last_message.name == "check_guess":

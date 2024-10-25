@@ -14,15 +14,44 @@ workflow.add_node("player", player_node)
 workflow.add_node("call_tool", tool_node)
 
 
+def correct_tool_call(state):
+    if len(state["messages"][-1].tool_calls) > 1:
+        state["messages"][-1].tool_calls = [state["messages"][-1].tool_calls[0]]
+        experiment_logger.log(f"multiple tool calls: {state['messages'][-1].tool_calls}")
+        
+    last_tool_call = state["messages"][-1].tool_calls[0]
+    task_for_host = state["task_for_host"]
+    # fix the tool call if the host called the wrong tool for "answer_question" and "check_guess"
+    if last_tool_call["name"] == "check_guess" and \
+            state["task_for_host"] == "answer_question":
+        
+        state["messages"][-1].tool_calls[0]["name"] = state["task_for_host"]
+        state["messages"][-1].tool_calls[0]["args"] = {
+            "topic": state["topic"],
+            "question": state["most_recent_question"],
+            "task_for_host": state["task_for_host"],
+        }
+        experiment_logger.log(f"fixed tool call: {state['messages'][-1].tool_calls[0]}")
+    
+    # fix the tool call if the host uses the wrong argument for "check_guess"
+    elif last_tool_call["name"] == "check_guess" and \
+            state["task_for_host"] == "check_guess":
+        if last_tool_call["args"]["topic"] != state["topic"] or \
+                last_tool_call["args"]["guess"] != state["guess"]:
+            
+            state["messages"][-1].tool_calls[0]["args"]["topic"] = state["topic"]
+            state["messages"][-1].tool_calls[0]["args"]["guess"] = state["guess"]
+
+            experiment_logger.log(f"fixed tool call args from {last_tool_call['args']} to {state['messages'][-1].tool_calls[0]['args']}")
+
+
+
 def router(state):
     messages = state["messages"]
     last_message = messages[-1]
-
     if last_message.tool_calls:
         experiment_logger.log(f"tool call: {last_message.tool_calls}")
-        if last_message.tool_calls[0]["name"] == "check_guess" and state["task_for_host"] == "answer_question":
-            raise ValueError(f"Host called the wrong tool: {last_message.tool_calls[0]['name']}, expected: {state['task_for_host']}")
-        
+        correct_tool_call(state)
         return "call_tool"
     
     if state["question_asked"] > 20 or state["question_answered"] > 20:
@@ -79,6 +108,7 @@ events = app.stream(
         "question_answered": 0,
         "guess": "",
         "task_for_host": "generate_topic",
+        "most_recent_question": "",
     },
     {"recursion_limit": 200},
     stream_mode="updates"
