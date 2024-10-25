@@ -20,6 +20,9 @@ def router(state):
 
     if last_message.tool_calls:
         experiment_logger.log(f"tool call: {last_message.tool_calls}")
+        if last_message.tool_calls[0]["name"] == "check_guess" and state["task_for_host"] == "answer_question":
+            raise ValueError(f"Host called the wrong tool: {last_message.tool_calls[0]['name']}, expected: {state['task_for_host']}")
+        
         return "call_tool"
     
     if state["question_asked"] > 20 or state["question_answered"] > 20:
