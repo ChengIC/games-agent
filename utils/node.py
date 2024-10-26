@@ -58,6 +58,7 @@ host_system_prompt = """You are the AI host in a 20 questions game. Your tasks a
 
 player_system_prompt = """You are the AI player in a 20 questions game. 
                         Your task is to guess the secret topic by interacting with the host using the provided tools.
+                        You are encouraged to make a guess of the topic if you feel confident during the game after every few questions.
                         IMPORTANT: YOU MUST NEVER OUTPUT A GUESS DIRECTLY - ALWAYS USE THE make_guess TOOL!
                         
                         The conversation history is formatted as follows:

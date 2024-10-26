@@ -10,7 +10,9 @@ import copy
 class Game:
     def __init__(self, game_id):
         self.logger = ExperimentLogger(game_id=game_id)
-    
+        self.max_questions = 20
+        self.dialogs = []
+
     def _create_app(self):
         # create agent node
         host_node = functools.partial(agent_node, agent=host_agent, name="host", logger=self.logger)
@@ -64,8 +66,8 @@ class Game:
 
         # if there are multiple tool calls, only keep the first one
         if len(state["messages"][-1].tool_calls) > 1:
-            state["messages"][-1].tool_calls = [state["messages"][-1].tool_calls[0]]
             self.logger.log(f"multiple tool calls: {state['messages'][-1].tool_calls}")
+            state["messages"][-1].tool_calls = [state["messages"][-1].tool_calls[0]]
 
         # fix host tool call
         last_tool_call = copy.deepcopy(state["messages"][-1].tool_calls[0])
@@ -73,19 +75,19 @@ class Game:
 
         # fix the host's tool call if the host called the wrong tool for "answer_question" and "check_guess"
         if last_tool_call["name"] == "check_guess" and \
-                state["task_for_host"] == "answer_question":
+                task_for_host == "answer_question":
             
-            state["messages"][-1].tool_calls[0]["name"] = state["task_for_host"]
+            state["messages"][-1].tool_calls[0]["name"] = task_for_host
             state["messages"][-1].tool_calls[0]["args"] = {
                 "topic": state["topic"],
                 "question": state["most_recent_question"],
-                "task_for_host": state["task_for_host"],
+                "task_for_host": task_for_host,
             }
             self.logger.log(f"fixed tool call: {state['messages'][-1].tool_calls[0]}")
         
         # fix the host's tool call if the host uses the wrong argument for "check_guess"
         elif last_tool_call["name"] == "check_guess" and \
-                state["task_for_host"] == "check_guess":
+                task_for_host == "check_guess":
             if last_tool_call["args"]["topic"] != state["topic"] or \
                     last_tool_call["args"]["guess"] != state["guess"]:
                 
@@ -110,8 +112,9 @@ class Game:
         """
 
         # if the player has asked 20 questions and the host has answered 20 questions, go to end
-        if state["num_questions_asked"] == 20 and state["num_questions_answered"] == 20:
-            self.logger.log("question asked and answered 20 go to end")
+        if state["num_questions_asked"] >= self.max_questions and state["num_questions_answered"] >= self.max_questions:
+            self.logger.log("="*100)
+            self.logger.log(f"Questions asked and answered: {self.max_questions} and game ends for topic: {state['topic']}")
             return "end"
 
         # if there is a tool call, correct the tool call with the accurate tool name and arguments before calling the tool
@@ -119,17 +122,16 @@ class Game:
         if last_message.tool_calls:
             self.logger.log(f"tool call: {last_message.tool_calls}")
             self._correct_tool_call(state)
-            
             return "call_tool"
         
         # if the player's guess matches the topic, go to end
         if state["guess"].lower() == state["topic"].lower():
-            self.logger.log("guess is the topic go to end")
+            self.logger.log("="*100)
+            self.logger.log(f"Guess matches topic: {state['topic']} and game ends")
             return "end"
         
         return "continue"
 
-    # Run the graph
     def run(self):
         self._create_app()
         events = self.app.stream(
@@ -149,15 +151,20 @@ class Game:
         {"recursion_limit": 200},
             stream_mode="updates"
         )
-        for s in events:
-            self.logger.log("********************************************************")
-            for node, values in s.items():
+        for event in events:
+            self.logger.log("*"*100) 
+            for node, values in event.items():
                 self.logger.log(f"update node: {node} and update: {values}")
 
                 # simply print the player's and host's messages for demo
                 if node == "player" or node == "host":
                     if len(values["messages"][-1].content) > 0:
                         print (f"{node}: {values['messages'][-1].content}")
+                        self.dialogs.append(f"{node}: {values['messages'][-1].content}")
+
+        self.logger.log("="*100)
+        for dialog in self.dialogs:
+            self.logger.log(dialog)
 
 
 if __name__ == "__main__":

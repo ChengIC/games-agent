@@ -34,6 +34,7 @@ def make_guess(messages):
     PROMPT = """You are a player of 20 questions game. The host has generated a secret topic for the game. 
             Your task is to make a guess of the topic based on the answer from the host.
             You should observe the conversation history as {messages} and the answer from the host to make a guess.
+            If you found you made a guess in the past, you should not make the same guess again.
 
             Instructions:
             1. Make a guess of the topic based on the conversation history and the answer from the host.
