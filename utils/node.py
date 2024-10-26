@@ -3,9 +3,7 @@ import functools
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from utils.llm import host_llm, player_llm
 from utils.tools import host_tools, player_tools
-import logging
-from datetime import datetime
-from utils.logger import experiment_logger
+
 
 def create_agent(llm, tools, system_prompt, role):
     """ Create an agent with a given llm, tools, and system prompt """
@@ -88,7 +86,7 @@ host_agent = create_agent(host_llm, host_tools, host_system_prompt, "host")
 player_agent = create_agent(player_llm, player_tools, player_system_prompt, "player")
 
 
-def format_chat_history(messages, current_role, logging=True):
+def format_chat_history(messages, current_role, logger=False):
     """ Filter out tool messages from a list of messages """
     filtered_messages = []
     for m in messages:
@@ -97,26 +95,28 @@ def format_chat_history(messages, current_role, logging=True):
                 filtered_messages.append(("ai", m.content))
             else:
                 filtered_messages.append(("human", m.content))
-    if logging:
-        experiment_logger.log(" get_chat_history messages:")
+    if logger:
+        logger.log("get_chat_history messages:")
         for i, msg in enumerate(filtered_messages):
-            experiment_logger.log(f"filtered_message {i}: {msg}")
+            logger.log(f"filtered_message {i}: {msg}")
     return filtered_messages
 
 
 # Helper function to create a node for a given agent
-def agent_node(state, agent, name, logging=True):
-    experiment_logger.log(
-        f"call agent: {name} with input state topic: {state['topic']}, "
-        f"num_questions_answered: {state['num_questions_answered']}, "
-        f"num_questions_asked: {state['num_questions_asked']}, "
-        f"task_for_host: {state['task_for_host']}, "
-        f"guess: {state['guess']}"
+def agent_node(state, agent, name, logger=False):
+    if logger:
+        logger.log(
+            f"call agent: {name} with input state topic: {state['topic']}, "
+            f"num_questions_answered: {state['num_questions_answered']}, "
+            f"num_questions_asked: {state['num_questions_asked']}, "
+            f"task_for_host: {state['task_for_host']}, "
+            f"guess: {state['guess']}"
     )
 
     last_message = state["messages"][-1]
     if isinstance(last_message, ToolMessage):
-        experiment_logger.log(f"call tools: {last_message.name} with tool content: {last_message.content}")
+        if logger:
+            logger.log(f"call tools: {last_message.name} with tool content: {last_message.content}")
 
         if last_message.name == "generate_topic":
             return {
@@ -161,9 +161,9 @@ def agent_node(state, agent, name, logging=True):
     else:
         result = ""
         if name == "player":
-            result = agent.invoke({"messages": format_chat_history(state["messages"], name)})
+            result = agent.invoke({"messages": format_chat_history(state["messages"], name, logger)})
         else:
-            host_state = {"messages": format_chat_history(state["messages"], name),
+            host_state = {"messages": format_chat_history(state["messages"], name, logger),
                           "topic": [state.get("topic", "")],
                           "task_for_host": [state.get("task_for_host", "")],}
             
@@ -173,7 +173,8 @@ def agent_node(state, agent, name, logging=True):
             result = agent.invoke(host_state)
 
         result = AIMessage(**result.dict(exclude={"type", "name"}), name=name)
-        experiment_logger.log(f"agent {name} returns: {result}")
+        if logger:
+            logger.log(f"agent {name} returns: {result}")
         return {
             "messages": [result],
             "sender": name,
@@ -181,5 +182,4 @@ def agent_node(state, agent, name, logging=True):
 
 
 
-host_node = functools.partial(agent_node, agent=host_agent, name="host")
-player_node = functools.partial(agent_node, agent=player_agent, name="player")
+
