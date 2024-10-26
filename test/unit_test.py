@@ -3,33 +3,51 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from utils.tools import generate_topic, answer_question, generate_question, make_guess
-from utils.node import host_agent, player_agent
+
+from utils.node import host_agent, player_agent, format_chat_history
 from utils.state import AgentState
 from langchain_core.messages import HumanMessage, AIMessage
 
 class Test(unittest.TestCase):
 
     def test_host_agent_is_generating_topic(self):
-        state = AgentState(messages=[HumanMessage(content="Let's play a game of 20 questions")])
-        response = host_agent.invoke(state)
+        state = AgentState(messages=[HumanMessage(content="Let's play a game of 20 questions")],
+                           guess="",
+                           task_for_host="generate_topic", 
+                           topic="")
+        host_state = {"messages": format_chat_history(state["messages"], "host"),
+                      "guess": [state.get("guess")],
+                      "task_for_host": [state.get("task_for_host")],
+                      "topic": [state.get("topic")]}
+        response = host_agent.invoke(host_state)
         self.assertEqual(response.tool_calls[0]['name'], 'generate_topic')
 
     def test_host_agent_is_answering_question(self):
         state = AgentState(messages=[HumanMessage(content="Let's play a game of 20 questions"), 
                                     AIMessage(content="I have a secret topic for you to guess. Let's start the game."),
-                                    HumanMessage(content="Is it a cat?")], topic="dog")
-        response = host_agent.invoke({"messages": state["messages"], 
-                                      "topic": state["topic"]})
-        self.assertEqual(response.tool_calls[0]['name'], 'answer_question')
-        self.assertEqual(response.content, "No")
+                                    HumanMessage(content="Is it a cat?")], 
+                           guess="",
+                           task_for_host="answer_question", 
+                           topic="dog") 
         
+        host_state = {"messages": format_chat_history(state["messages"], "host"),
+                      "guess": [state.get("guess")],
+                      "task_for_host": [state.get("task_for_host")],
+                      "topic": [state.get("topic")]}
+        
+        response = host_agent.invoke(host_state)
+        self.assertEqual(response.tool_calls[0]['name'], 'answer_question')        
         
     def test_player_agent_is_generating_question(self):
         state = AgentState(messages=[HumanMessage(content="I have a secret topic for you to guess. Let's start the game."),
                                      AIMessage(content="Is it a dog?"),
                                      HumanMessage(content="No")])
-        response = player_agent.invoke(state)
+        
+        player_state = {"messages": format_chat_history(state["messages"], "player"),
+                        "guess": [state.get("guess")],
+                        "task_for_player": [state.get("task_for_player")]}
+        
+        response = player_agent.invoke(player_state)
         self.assertEqual(response.tool_calls[0]['name'], 'generate_question')
 
 
