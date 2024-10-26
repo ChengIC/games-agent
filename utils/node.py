@@ -88,9 +88,8 @@ host_agent = create_agent(host_llm, host_tools, host_system_prompt, "host")
 player_agent = create_agent(player_llm, player_tools, player_system_prompt, "player")
 
 
-def format_chat_history(messages, current_role):
+def format_chat_history(messages, current_role, logging=True):
     """ Filter out tool messages from a list of messages """
-    experiment_logger.log(" get_chat_history messages:")
     filtered_messages = []
     for m in messages:
         if not isinstance(m, ToolMessage) and m.content != "":
@@ -98,19 +97,22 @@ def format_chat_history(messages, current_role):
                 filtered_messages.append(("ai", m.content))
             else:
                 filtered_messages.append(("human", m.content))
-
-    for i, msg in enumerate(filtered_messages):
-        experiment_logger.log(f"filtered_message {i}: {msg}")
+    if logging:
+        experiment_logger.log(" get_chat_history messages:")
+        for i, msg in enumerate(filtered_messages):
+            experiment_logger.log(f"filtered_message {i}: {msg}")
     return filtered_messages
 
 
 # Helper function to create a node for a given agent
-def agent_node(state, agent, name):
-    experiment_logger.log(f"call agent: {name} with input state topic: {state['topic']} \
-                          question_answered: {state['question_answered']} \
-                          question_asked: {state['question_asked']} \
-                          task_for_host: {state['task_for_host']} \
-                          guess: {state['guess']}")
+def agent_node(state, agent, name, logging=True):
+    experiment_logger.log(
+        f"call agent: {name} with input state topic: {state['topic']}, "
+        f"num_questions_answered: {state['num_questions_answered']}, "
+        f"num_questions_asked: {state['num_questions_asked']}, "
+        f"task_for_host: {state['task_for_host']}, "
+        f"guess: {state['guess']}"
+    )
 
     last_message = state["messages"][-1]
     if isinstance(last_message, ToolMessage):
@@ -128,7 +130,7 @@ def agent_node(state, agent, name):
             return {
                 "messages": [AIMessage(content=last_message.content, name=name)],
                 "sender": "host",
-                "question_answered": state["question_answered"] + 1,
+                "num_questions_answered": state["num_questions_answered"] + 1,
             }
 
         elif last_message.name == "make_guess":
@@ -143,7 +145,7 @@ def agent_node(state, agent, name):
             return {
                 "messages": [AIMessage(content=last_message.content, name=name)],
                 "sender": "player",
-                "question_asked": state["question_asked"] + 1,
+                "num_questions_asked": state["num_questions_asked"] + 1,
                 "task_for_host": "answer_question",
                 "most_recent_question": last_message.content,
             }
@@ -153,15 +155,14 @@ def agent_node(state, agent, name):
                 "messages": [AIMessage(content=last_message.content, name=name)],
                 "sender": "host",
             }
-        
         else:
             raise ValueError(f"Unknown tool: {last_message.name}")
+        
     else:
+        result = ""
         if name == "player":
             result = agent.invoke({"messages": format_chat_history(state["messages"], name)})
         else:
-            print(f"state task for host: {state['task_for_host']}, guess: {state['guess']}, topic: {state['topic']}")
-            
             host_state = {"messages": format_chat_history(state["messages"], name),
                           "topic": [state.get("topic", "")],
                           "task_for_host": [state.get("task_for_host", "")],}

@@ -15,13 +15,24 @@ workflow.add_node("call_tool", tool_node)
 
 
 def correct_tool_call(state):
+    """
+    This function is used to call the correct tool with the correct arguments.
+
+    -- arguments:
+        state: the state of the agent
+
+    """
+
+    # if there are multiple tool calls, only keep the first one
     if len(state["messages"][-1].tool_calls) > 1:
         state["messages"][-1].tool_calls = [state["messages"][-1].tool_calls[0]]
         experiment_logger.log(f"multiple tool calls: {state['messages'][-1].tool_calls}")
 
+    # fix host tool call
     last_tool_call = state["messages"][-1].tool_calls[0]
     task_for_host = state["task_for_host"]
-    # fix the tool call if the host called the wrong tool for "answer_question" and "check_guess"
+
+    # fix the host's tool call if the host called the wrong tool for "answer_question" and "check_guess"
     if last_tool_call["name"] == "check_guess" and \
             state["task_for_host"] == "answer_question":
         
@@ -33,7 +44,7 @@ def correct_tool_call(state):
         }
         experiment_logger.log(f"fixed tool call: {state['messages'][-1].tool_calls[0]}")
     
-    # fix the tool call if the host uses the wrong argument for "check_guess"
+    # fix the host's tool call if the host uses the wrong argument for "check_guess"
     elif last_tool_call["name"] == "check_guess" and \
             state["task_for_host"] == "check_guess":
         if last_tool_call["args"]["topic"] != state["topic"] or \
@@ -43,10 +54,23 @@ def correct_tool_call(state):
             state["messages"][-1].tool_calls[0]["args"]["guess"] = state["guess"]
 
             experiment_logger.log(f"fixed tool call args from {last_tool_call['args']} to {state['messages'][-1].tool_calls[0]['args']}")
-
-
+    else:
+        pass
 
 def router(state):
+    """
+    The router function is used to route the state to the correct agent node and tool node.
+
+    -- arguments:
+        state: the state of the agent
+    """
+
+    # if the player has asked 20 questions and the host has answered 20 questions, go to end
+    if state["num_questions_asked"] == 20 and state["num_questions_answered"] == 20:
+        experiment_logger.log("question asked and answered 20 go to end")
+        return "end"
+
+    # if there is a tool call, correct the tool call with the accurate tool name and arguments before calling the tool
     messages = state["messages"]
     last_message = messages[-1]
     if last_message.tool_calls:
@@ -54,10 +78,7 @@ def router(state):
         correct_tool_call(state)
         return "call_tool"
     
-    if state["question_asked"] > 20 or state["question_answered"] > 20:
-        experiment_logger.log("question asked and answered 20 go to end")
-        return "end"
-    
+    # if the player's guess matches the topic, go to end
     if state["guess"].lower() == state["topic"].lower():
         experiment_logger.log("guess is the topic go to end")
         return "end"
@@ -104,8 +125,8 @@ events = app.stream(
             )
         ],
         "topic": "",
-        "question_asked": 0,
-        "question_answered": 0,
+        "num_questions_asked": 0,
+        "num_questions_answered": 0,
         "guess": "",
         "task_for_host": "generate_topic",
         "most_recent_question": "",

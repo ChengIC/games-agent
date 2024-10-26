@@ -1,8 +1,21 @@
-# games-agent
-20 Questions Game with LLM-Agent
+# Self-Play LLM for 20 Questions Game
+## Tech Stack
+- Langgraph: State Graph for LLM Agents
+- LLM: OpenAI
 
 
-# Workflow
-1. The `hostAgent` needs to come up with a 'topic' of the game and he only answers "YES" or "NO" to the questions asked by the guesserAgent. The topic is an object or a living thing that the guesserAgent needs to guess. The chosen item should be common enough that most people would know it, but not too obvious.
-2. The `guesserAgent` asks up to 20 questions (YES or No type questions) to guess the object, he can have multiple attempts until 20 questions have been asked.
-3. The `game` is ended when the `guesserAgent` guesses the object or when 20 questions have been asked.
+## Agent Architecture
+![architecture](agent.png)
+
+
+## Quick Start
+1. Create virtual environment and install the dependencies
+```
+pip install -r requirements.txt
+```
+
+2. Create an OpenAI key and put it in the `.env` file
+```
+OPENAI_API_KEY = sk-...
+```
+3. Run the code using `python agent.py`

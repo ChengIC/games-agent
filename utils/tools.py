@@ -39,6 +39,7 @@ def make_guess(messages):
             1. Make a guess of the topic based on the conversation history and the answer from the host.
             2. Please only return the name of the topic you guess, not any additional text. For example, you think the topic is "apple", you should return "apple". 
             Don't return "I think the topic is apple" or 'Is the topic apple?' or anything like that.
+            3. You should not make the same guess twice! If you found you make a guess in the past, you should not make the same guess again.
             """
     
     query_prompt = PromptTemplate.from_template(PROMPT)

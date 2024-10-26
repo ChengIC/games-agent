@@ -15,7 +15,7 @@ class Test(unittest.TestCase):
                            guess="",
                            task_for_host="generate_topic", 
                            topic="")
-        host_state = {"messages": format_chat_history(state["messages"], "host"),
+        host_state = {"messages": format_chat_history(state["messages"], "host", logging=False),
                       "guess": [state.get("guess")],
                       "task_for_host": [state.get("task_for_host")],
                       "topic": [state.get("topic")]}
@@ -30,7 +30,7 @@ class Test(unittest.TestCase):
                            task_for_host="answer_question", 
                            topic="dog") 
         
-        host_state = {"messages": format_chat_history(state["messages"], "host"),
+        host_state = {"messages": format_chat_history(state["messages"], "host", logging=False),
                       "guess": [state.get("guess")],
                       "task_for_host": [state.get("task_for_host")],
                       "topic": [state.get("topic")]}
@@ -43,7 +43,7 @@ class Test(unittest.TestCase):
                                      AIMessage(content="Is it a dog?"),
                                      HumanMessage(content="No")])
         
-        player_state = {"messages": format_chat_history(state["messages"], "player"),
+        player_state = {"messages": format_chat_history(state["messages"], "player", logging=False),
                         "guess": [state.get("guess")],
                         "task_for_player": [state.get("task_for_player")]}
         

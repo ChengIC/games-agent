@@ -6,8 +6,8 @@ class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     sender: str
     topic: str
-    question_asked: int
-    question_answered: int
+    num_questions_asked: int
+    num_questions_answered: int
     guess: str
     task_for_host: str
     most_recent_question: str
