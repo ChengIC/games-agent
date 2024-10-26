@@ -54,9 +54,13 @@ with open(os.path.join('data', 'reference_things.csv'), 'r') as file:
         all_reference_topics.append(row[1])
 
 @tool
-def generate_topic():
-    """For the host to come up with a topic for the player to guess only when the topic is not generated yet."""
+def generate_topic(task_for_host: str):
+    """For the host to come up with a topic for the player to guess only when the topic is not generated yet. 
+    If the task_for_host is not "generate_topic", you should not use this tool."""
 
+    if task_for_host != "generate_topic":
+        raise ValueError("This tool should only be used when the task is to generate a topic.")
+    
     PROMPT = """Generate a unique and commonly recognized name for a game of 20 questions. 
             The topic should be a single object or living thing from any of the following categories: 
             animals, plants, places, daily-life items, or famous individuals or characters from movies, TV shows, books, or history. 
@@ -72,15 +76,19 @@ def generate_topic():
     return response.content
 
 @tool
-def answer_question(topic: str, question: str):
+def answer_question(topic: str, question: str, task_for_host: str):
     """For the host to answer the YES-or-NO type question from the player.
-    It takes the topic and the question to answer the question."""
+    It takes the topic and the question to answer the question.
+    If the task_for_host is not "answer_question", you should not use this tool."""
 
+    if task_for_host != "answer_question":
+        raise ValueError("This tool should only be used when the task is to answer a question.")
+    
     PROMPT = """You are a host of 20 questions game. You already come up with a secret topic given as {topic}. 
             The player will ask a YES-or-NO type question to guess the topic. 
             The question is given as {question}.
 
-            Your task is to only answer with "YES" or "NO" regrading to the question.
+            Your task is to simply answer with "YES" or "NO" regrading to the question in terms of the topic. 
             Please only return "YES" or "NO", not any additional text! 
             """
     
@@ -89,10 +97,25 @@ def answer_question(topic: str, question: str):
     response = chain.invoke({"topic": topic, "question": question})
     return response.content
 
+@tool
+def check_guess(topic: str, guess: str, task_for_host: str):
+    """For the host to check if the player's guess is correct. 
+    Only use this tool if the player has made a guess in a declarative statement.
+    If the task_for_host is not "check_guess", you should not use this tool."""
+
+    if task_for_host != "check_guess":
+        raise ValueError("This tool should only be used when the task is to check a guess.")
+
+    if guess.lower() == topic.lower() or topic.lower() in guess.lower():
+        return "Congratulations, you are right!"
+    else:
+        return "Sorry, you are wrong. Please ask another question."
+
 
 host_tools = [
     generate_topic,
-    answer_question
+    answer_question,
+    check_guess
 ]
 
 

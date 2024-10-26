@@ -9,3 +9,4 @@ class AgentState(TypedDict):
     question_asked: int
     question_answered: int
     guess: str
+    task_for_host: str
