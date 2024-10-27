@@ -8,7 +8,7 @@
 ### Workflow
 ![architecture](agent.png)
 
-The game starts with the host generating a topic. The player and host take turns to ask questions and make guesses. The game ends when the player guesses the topic correctly or the number of questions reaches the limit.
+The game starts with the host generating a topic. The player and host take turns to ask questions and answer questions. The game ends when the player guesses the topic correctly or the number of questions reaches the limit.
 
 ### Tools
 #### Host
