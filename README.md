@@ -5,8 +5,20 @@
 
 
 ## Agent Architecture
+### Workflow
 ![architecture](agent.png)
 
+The game starts with the host generating a topic. The player and host take turns to ask questions and make guesses. The game ends when the player guesses the topic correctly or the number of questions reaches the limit.
+
+### Tools
+#### Host
+- `generate_topic`: generate a topic for the game
+- `answer_question`: answer 'Yes' or 'No' to the question asked by the player
+- `check_guess`: check if the guess is correct
+
+#### Player
+- `ask_question`: ask a question to the host
+- `guess_topic`: guess the topic
 
 ## Quick Start
 1. Create virtual environment and install the dependencies
