@@ -18,4 +18,5 @@ pip install -r requirements.txt
 ```
 OPENAI_API_KEY = sk-...
 ```
+
 3. Run the code using `python agent.py`
