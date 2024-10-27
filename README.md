@@ -17,8 +17,8 @@ The game starts with the host generating a topic. The player and host take turns
 - `check_guess`: check if the guess is correct
 
 #### Player
-- `ask_question`: ask a question to the host
-- `guess_topic`: guess the topic
+- `generate_question`: ask a question to the host
+- `make_guess`: guess the topic
 
 ## Quick Start
 1. Create virtual environment and install the dependencies
