@@ -119,46 +119,38 @@ def agent_node(state, agent, name, logger=False):
         if logger:
             logger.log(f"call tools: {last_message.name} with tool content: {last_message.content}")
 
-        if last_message.name == "generate_topic":
-            return {
-                "messages": [AIMessage(content="I have a secret topic for you to guess. Let's start the game.", name=name)],
-                "sender": "host",
-                "topic": last_message.content,
-                "task_for_host": "answer_question",
-            }
-        
-        elif last_message.name == "answer_question":
-            return {
-                "messages": [AIMessage(content=last_message.content, name=name)],
-                "sender": "host",
-                "num_questions_answered": state["num_questions_answered"] + 1,
-            }
+        result = {
+            "messages": [AIMessage(content=last_message.content, name=name)],
+            "sender": name,
+        }
 
+        if last_message.name == "generate_topic":
+            result["topic"] = last_message.content
+            result["task_for_host"] = "answer_question"
+
+            # Do not reveal the topic in the chat history
+            result["messages"] = [AIMessage(content="I have a secret topic for you to guess. Let's start the game.", name=name)] 
+            
+        elif last_message.name == "answer_question":
+            result["num_questions_answered"] = state["num_questions_answered"] + 1
+            
         elif last_message.name == "make_guess":
-            return {
-                "messages": [AIMessage(content=last_message.content, name=name)],
-                "sender": "player",
-                "guess": last_message.content,
-                "task_for_host": "check_guess",
-            }
-        
+            result["guess"] = last_message.content
+            result["task_for_host"] = "check_guess"
+                
         elif last_message.name == "generate_question":
-            return {
-                "messages": [AIMessage(content=last_message.content, name=name)],
-                "sender": "player",
-                "num_questions_asked": state["num_questions_asked"] + 1,
-                "task_for_host": "answer_question",
-                "most_recent_question": last_message.content,
-            }
-        
+            result["num_questions_asked"] = state["num_questions_asked"] + 1
+            result["task_for_host"] = "answer_question"
+            result["most_recent_question"] = last_message.content       
+            
         elif last_message.name == "check_guess":
-            return {
-                "messages": [AIMessage(content=last_message.content, name=name)],
-                "sender": "host",
-            }
+            pass
+
         else:
             raise ValueError(f"Unknown tool: {last_message.name}")
         
+        return result
+    
     else:
         result = ""
         if name == "player":
@@ -174,8 +166,10 @@ def agent_node(state, agent, name, logger=False):
             result = agent.invoke(host_state)
 
         result = AIMessage(**result.dict(exclude={"type", "name"}), name=name)
+
         if logger:
             logger.log(f"agent {name} returns: {result}")
+        
         return {
             "messages": [result],
             "sender": name,
