@@ -8,10 +8,9 @@ class ExperimentLogger:
         self.timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.game_id = game_id
         
-        # Create timestamp-based subfolder
+        # Create timestamp-based subfolder with exist_ok=True
         self.timestamp_dir = os.path.join(log_dir, self.timestamp)
-        if not os.path.exists(self.timestamp_dir):
-            os.makedirs(self.timestamp_dir)
+        os.makedirs(self.timestamp_dir, exist_ok=True)
         
         self.log_file = self._create_log_file()
         
