@@ -12,6 +12,7 @@ class Game:
         self.logger = ExperimentLogger(game_id=game_id)
         self.max_questions = 20
         self.dialogs = []
+        self.updated_nodes = []
 
     def _create_app(self):
         # create agent node
@@ -155,12 +156,15 @@ class Game:
             self.logger.log("*"*100) 
             for node, values in event.items():
                 self.logger.log(f"update node: {node} and update: {values}")
+                self.updated_nodes.append(node)
 
                 # simply print the player's and host's messages for demo
                 if node == "player" or node == "host":
                     if len(values["messages"][-1].content) > 0:
                         print (f"{node}: {values['messages'][-1].content}")
                         self.dialogs.append(f"{node}: {values['messages'][-1].content}")
+            
+            self.logger.validate_updated_nodes(self.updated_nodes)
 
         self.logger.log("="*100)
         for dialog in self.dialogs:
@@ -168,5 +172,7 @@ class Game:
 
 
 if __name__ == "__main__":
-    game = Game("test")
+    import uuid
+    game_id  = uuid.uuid4()
+    game = Game(game_id)
     game.run()

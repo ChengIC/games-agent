@@ -47,5 +47,20 @@ class ExperimentLogger:
         elif level == 'critical':
             self.logger.critical(message)
 
+    def validate_updated_nodes(self, updated_nodes):
+        """
+        Validate that the updated nodes follow the state pattern:
+
+        [host, call_tool, host, player, call_tool, player, ...]
+
+        """
+        pattern = ["host", "call_tool", "host", "player", "call_tool", "player"]
+        for idx, node in enumerate(updated_nodes):
+            expected_node = pattern[idx % len(pattern)]
+            if node != expected_node:
+                self.log(f"Invalid node order: {node} at index {idx} for updated_nodes: {updated_nodes}", level="error")
+        
+        self.log(f"Updated nodes are valid: {updated_nodes}", level="info")
+
 # Remove the global instance
 # experiment_logger = ExperimentLogger()
