@@ -36,16 +36,32 @@ class Test(unittest.TestCase):
                       "topic": [state.get("topic")]}
         
         response = host_agent.invoke(host_state)
-        self.assertEqual(response.tool_calls[0]['name'], 'answer_question')        
+        self.assertEqual(response.tool_calls[0]['name'], 'answer_question') 
+    
+    def test_host_agent_is_checking_guess(self):
+        state = AgentState(messages=[HumanMessage(content="Let's play a game of 20 questions"), 
+                                    AIMessage(content="I have a secret topic for you to guess. Let's start the game."),
+                                    HumanMessage(content="Is it a cat?"),
+                                    AIMessage(content="Yes"),
+                                    HumanMessage(content="Kitten")],
+                           guess="kitten",
+                           topic="kitten",
+                           task_for_host="check_guess")
+        
+        host_state = {"messages": format_chat_history(state["messages"], "host"),
+                      "guess": [state.get("guess")],
+                      "topic": [state.get("topic")],
+                      "task_for_host": [state.get("task_for_host")]}
+        
+        response = host_agent.invoke(host_state)
+        self.assertEqual(response.tool_calls[0]['name'], 'check_guess')
         
     def test_player_agent_is_generating_question(self):
         state = AgentState(messages=[HumanMessage(content="I have a secret topic for you to guess. Let's start the game."),
                                      AIMessage(content="Is it a dog?"),
                                      HumanMessage(content="No")])
         
-        player_state = {"messages": format_chat_history(state["messages"], "player"),
-                        "guess": [state.get("guess")],
-                        "task_for_player": [state.get("task_for_player")]}
+        player_state = {"messages": format_chat_history(state["messages"], "player")}
         
         response = player_agent.invoke(player_state)
         self.assertEqual(response.tool_calls[0]['name'], 'generate_question')
