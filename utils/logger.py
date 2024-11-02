@@ -5,11 +5,14 @@ import os
 class ExperimentLogger:
     def __init__(self, log_dir='logs', game_id=None):
         self.log_dir = log_dir
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-        
         self.timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.game_id = game_id
+        
+        # Create timestamp-based subfolder
+        self.timestamp_dir = os.path.join(log_dir, self.timestamp)
+        if not os.path.exists(self.timestamp_dir):
+            os.makedirs(self.timestamp_dir)
+        
         self.log_file = self._create_log_file()
         
         # Configure the logger
@@ -29,8 +32,8 @@ class ExperimentLogger:
 
     def _create_log_file(self):
         if self.game_id:
-            return f"{self.log_dir}/experiment_{self.timestamp}_game_{self.game_id}.log"
-        return f"{self.log_dir}/experiment_{self.timestamp}.log"
+            return os.path.join(self.timestamp_dir, f"game_{self.game_id}.log")
+        return os.path.join(self.timestamp_dir, "experiment.log")
 
     def log(self, message, level='info'):
         if level == 'debug':
