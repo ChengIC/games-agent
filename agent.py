@@ -1,23 +1,42 @@
-from utils.node import agent_node, host_agent, player_agent
+# from utils.node import agent_node, host_agent, player_agent
 from langgraph.graph import StateGraph, START,END
 from utils.state import AgentState
 from utils.tools import tool_node
 from langchain_core.messages import SystemMessage
 from utils.logger import ExperimentLogger
-import functools
+from utils.llm import host_llm, player_llm
+from utils.tools import host_tools, player_tools
+# import functools
+from utils.node import GameAgentNode
 import copy
 
 class Game:
-    def __init__(self, game_id):
+    def __init__(self, system_prompt, game_id):
         self.logger = ExperimentLogger(game_id=game_id)
         self.max_questions = 20
         self.dialogs = []
         self.updated_nodes = []
 
+        self.host_system_prompt = system_prompt["host"]
+        self.player_system_prompt = system_prompt["player"]
+        
     def _create_app(self):
         # create agent node
-        host_node = functools.partial(agent_node, agent=host_agent, name="host", logger=self.logger)
-        player_node = functools.partial(agent_node, agent=player_agent, name="player", logger=self.logger)
+        host_node = GameAgentNode(
+            llm=host_llm,
+            tools=host_tools,
+            role="host", 
+            system_prompt=self.host_system_prompt, 
+            logger=self.logger
+        ).create_node()
+        
+        player_node = GameAgentNode(
+            llm=player_llm,
+            tools=player_tools,
+            role="player", 
+            system_prompt=self.player_system_prompt, 
+            logger=self.logger
+        ).create_node()
 
         # Create the graph  
         workflow = StateGraph(AgentState)
@@ -173,6 +192,8 @@ class Game:
 
 if __name__ == "__main__":
     import uuid
+    import yaml
+    system_prompt = yaml.safe_load(open("system_prompts.yaml"))
     game_id  = uuid.uuid4()
-    game = Game(game_id)
+    game = Game(system_prompt, game_id)
     game.run()

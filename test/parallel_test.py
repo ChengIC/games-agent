@@ -6,9 +6,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from agent import Game
 import uuid
+import yaml
 
 def run_game(game_id):
-    game = Game(game_id)
+    system_prompt = yaml.safe_load(open("system_prompts.yaml"))
+    game = Game(system_prompt, game_id)
     game.run()
 
 def run_parallel_games(num_games):
