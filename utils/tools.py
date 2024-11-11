@@ -6,6 +6,30 @@ import os
 from langgraph.prebuilt import ToolNode
 from langchain_core.tools import tool
 
+def load_reference_topics(filepath: str):
+    """Load reference topics from a CSV file.
+    
+    Args:
+        filepath (str): Path to the CSV file containing reference topics
+        
+    Returns:
+        list: List of reference topics
+    """
+    try:
+        with open(filepath, 'r') as file:
+            reader = csv.reader(file)
+            return [row[1] for row in reader]
+    except FileNotFoundError:
+        print(f"Warning: Reference topics file not found at {filepath}")
+        return []
+    except Exception as e:
+        print(f"Error loading reference topics: {e}")
+        return []
+
+# Load reference topics for few-shot prompting applied in topic generation
+REFERENCE_TOPICS_FILEPATH = os.path.join('data', 'reference_things.csv')
+all_reference_topics = load_reference_topics(REFERENCE_TOPICS_FILEPATH)
+
 @tool
 def generate_question(messages):
     """For player to generate a YES-or-NO type question to ask the host to help guess the topic. 
@@ -48,12 +72,6 @@ def make_guess(messages):
     response = chain.invoke({"messages": messages})
     return response.content
 
-
-all_reference_topics = []
-with open(os.path.join('data', 'reference_things.csv'), 'r') as file:
-    reader = csv.reader(file)
-    for row in reader:
-        all_reference_topics.append(row[1])
 
 @tool
 def generate_topic(task_for_host: str):
@@ -108,6 +126,7 @@ def check_guess(topic: str, guess: str, task_for_host: str):
     if task_for_host != "check_guess":
         raise ValueError("This tool should only be used when the task is to check a guess.")
 
+    # Alternative: use LLM approach to check if the guess is correct (NOT IMPLEMENTED YET)
     if topic.lower() in guess.lower():
         return "Congratulations, you are right!"
     else:
