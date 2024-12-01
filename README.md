@@ -1,4 +1,4 @@
-# Self-Play LLM for 20 Questions Game
+# Self-Play LLM for 20 Questions Game Using LangGraph
 ## Tech Stack
 - Langgraph: State Graph for LLM Agents
 - LLM: OpenAI
